@@ -1,0 +1,133 @@
+body {
+    color: #ddd;
+    background-color: #111;
+    font-family: 'Inconsolata', 'Dina', 'Liberation Mono', 'Terminal', monospace;
+    font-size: 12px;
+}
+
+div.freki {
+    color: #ccc;
+    width: 200px;
+    height: 200px;
+    float: left;
+    font-family: 'Inconsolata', 'Dina', 'Liberation Mono', 'Terminal', monospace;
+    font-size: 6px;
+
+}
+pre.code {
+    margin-left: 10px;
+    margin-right: 10px;
+    padding: 10px;
+    font-family: 'Inconsolata', 'Dina', 'Liberation Mono', 'Terminal', monospace;
+    font-size: 12px;
+    background-color: #333;
+    border: solid 1px #000;
+
+}
+
+div.article_date {
+    height: 20px;
+    float: right;
+    padding: 5px;
+    font-size: 8px;
+}
+
+div.article_topic {
+    height: 20px;
+    font-size: 18px;
+    float: left;
+    
+}
+div.title {
+    font-size: 28px;
+}
+div.subtitle {
+    padding-top: 10px;
+    font-size: 14px;
+}
+div.over_menu {
+    margin-top: 20px;
+    margin-left: 60px;
+    font-size: 20px;
+    height: 100px;
+    float: left;
+}
+
+div.menu {
+    font-variant: small-caps;
+    margin-top: 50px;
+    border: solid 1px #000;
+    font-size: 18px;
+    float: left;
+}
+
+
+div.menu ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #333;
+}
+
+div.menu li {
+    float: left;
+    border: solid 1px #000;
+}
+
+div.menu li a {
+    display: block;
+    color: #ccc;
+    text-align: center;
+    padding: 10px;
+    padding-left: 20px;
+    padding-right: 20px;
+    text-decoration: none;
+}
+
+div.menu li a:hover {
+    background-color: #666;
+}
+
+a {
+    text-decoration: none;
+    color: #fff;
+}
+
+a:active {
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+a:visited {
+    color: #fff;
+}
+
+h1 {
+    color: #ccc;
+    letter-spacing: 2px;
+}
+
+div.heading {
+    width: 90%;
+    margin-left: 20px;
+    margin-right: 20px;
+}
+
+div.content {
+    width: 90%;
+    margin: 20px;
+}
+
+div.article {
+    margin-top: 20px;
+    padding-left: 10px;
+    padding-top: 10px;
+    padding-bottom: 5px;
+    border-left: solid 5px #444;
+    background-color: #181818;
+    min-height: 100px;
+}

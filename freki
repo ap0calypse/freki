@@ -1,0 +1,702 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use Storable qw/nstore retrieve/;
+use Env qw(HOME);
+use POSIX qw/strftime/;
+
+# project:      freki
+# purpose:      create pseudo-dynamic web content
+# authors:      see AUTHORS
+# license:      see LICENSE
+
+my $VERSION     = "0.1";
+my $STORAGE_DIR = "$HOME/.freki";
+my $CONFIG      = "$STORAGE_DIR/freki.conf";
+my $TEMPLATE    = "$STORAGE_DIR/freki.template";
+my $STORAGE     = "$STORAGE_DIR/freki.dat";
+my $HTML_DIR    = "$STORAGE_DIR/html";
+my $CSS_DIR     = "$HTML_DIR/css";
+my $CSS_FILE    = "$CSS_DIR/style.css";
+
+# hash refs for data and config
+my ($S, $C);
+
+# check if freki storage dir is present, otherwise create the dirs
+mkdir $STORAGE_DIR and print "<> creating freki directory ($STORAGE_DIR)\n" unless -d $STORAGE_DIR;
+mkdir $HTML_DIR and print "<> creating freki html directory ($HTML_DIR)\n" unless -d $HTML_DIR;
+mkdir $CSS_DIR and print "<> creating freki css directory ($CSS_DIR)\n" unless -d $CSS_DIR;
+
+# sanity checks
+unless (-e $CONFIG) {
+    print "!! no configuration file found ($CONFIG). please check!\n";
+    exit(1);
+}
+unless (-e $TEMPLATE) {
+    print "!! no template file found ($TEMPLATE). please check!\n";
+    exit(2);
+}
+unless (-e $CSS_FILE) {
+    print "!! no css file found ($CSS_FILE). please check!\n";
+    exit(3);
+}
+
+# retieve data from storage if present and not empty 
+if (-e $STORAGE && (stat $STORAGE)[7] > 5) {
+    $S = retrieve $STORAGE;
+}
+
+# read in config and populate $C (config hashref)
+open my $CONFFD, "< $CONFIG" or die "can't access config, please check $CONFIG\n";
+while (<$CONFFD>) {
+    next if m/^#.*/;
+    next if m/^[[:space:]]+$/;
+    $C->{'site_owner'}    = $1 if m/.*SITE_OWNER: *\"(.+)\".*/;
+    $C->{'owner_email'}   = $1 if m/.*OWNER_EMAIL: *\"(.+)\".*/;
+    $C->{'site_title'}    = $1 if m/.*SITE_TITLE: *\"(.+)\".*/;
+    $C->{'site_subtitle'} = $1 if m/.*SITE_SUBTITLE: *\"(.+)\".*/;
+}
+close $CONFFD;
+
+
+# function for adding articles or pages, parses file, determines type and adds
+# it to $S
+sub add_content {
+     my ($now_y, $now_m, $now_d) = split / /, strftime("%Y %m %d", gmtime);
+     my $file = shift;
+     my $random = join ("", ('a' .. 'f', 0 .. 9)[map {rand (16)} (1 .. 16)] );
+     my $found_type = 0;
+     my $found_topic = 0;
+     
+     # get type of page (article, page)
+     open my $AFD, "< $file";
+     while (<$AFD>) {
+        if (m/.*FREKI_CATEGORY: *\"(articles|pages){1}\".*/) {
+            $found_type = $1;
+            $S->{$found_type}{$now_y}{$now_m}{$now_d}{$random} = {};
+            last;
+        }
+     }
+     close $AFD;
+     print "!! no FREKI_CATEGORY line found in file, exiting\n" and exit(3) unless $found_type;
+     
+     # get topic of page
+     open $AFD, "< $file";
+     while (<$AFD>) {
+        if (m/.*FREKI_TOPIC: *\"(.+)\".*/) {
+            $S->{$found_type}{$now_y}{$now_m}{$now_d}{$random}{'topic'} = $1;
+            $found_topic = $1;
+            last;
+        }
+     }
+     close $AFD;
+     print "!! no FREKI_TOPIC line found in file, exiting\n" and exit(3) unless $found_topic;
+     
+     # get content
+     open $AFD, "< $file";
+     while (<$AFD>) {
+        if (/START_TEXT/ .. /END_TEXT/) {
+            $S->{$found_type}{$now_y}{$now_m}{$now_d}{$random}{'text'} .= $_ if $_ !~ /.*(END_TEXT|START_TEXT){1}.*/ ;
+        }
+     }
+     close $AFD;
+     nstore $S, $STORAGE;
+     print " >> Added '$random' to $found_type.\n";
+}
+
+    
+
+sub update_freki {
+    my ($now_y, $now_m, $now_d) = split / /, strftime("%Y %m %d", gmtime);
+    for (glob "$HTML_DIR/*.html") {
+        unlink $_;
+    }
+    if (-d "$HTML_DIR/pages") {
+        for (glob "$HTML_DIR/pages/*.html") {
+            unlink $_;
+        }
+        rmdir "$HTML_DIR/pages";
+    }
+    if (-d "$HTML_DIR/articles") {
+        for (glob "$HTML_DIR/articles/*.html") {
+            unlink $_;
+        }
+        rmdir "$HTML_DIR/articles";
+    }
+
+    my %menu_links;
+    for my $y (sort keys %{$S->{'pages'}}) {
+        for my $m (sort keys %{$S->{'pages'}{$y}}) {
+            for my $d (sort keys %{$S->{'pages'}{$y}{$m}}) {
+                for my $id (sort keys %{$S->{'pages'}{$y}{$m}{$d}}) {
+                    $menu_links{$id} = $S->{'pages'}{$y}{$m}{$d}{$id}{'topic'};
+                }
+            }
+        }
+    }
+    ########################################################### INDEX.HTML #################################
+    print ">> Generating index\n";
+    open my $INDEX_FD, "> $HTML_DIR/index.html";
+    open my $TEMPLATE_FD, "< $TEMPLATE";
+    while (my $line = <$TEMPLATE_FD>) {
+        if ($line =~ m/\[SITE_TITLE\]/gmx) {
+            $line =~ s/\[SITE_TITLE\]/$C->{'site_title'}/gmx;
+        }
+        if ($line =~ m/\[CSS_LOCATION\]/gmx) {
+            $line =~ s/\[CSS_LOCATION\]/\.\/css\/style.css/gmx;
+        }
+        if ($line =~ m/\[SITE_SUBTITLE\]/gmx) {
+            $line =~ s/\[SITE_SUBTITLE\]/$C->{'site_subtitle'}/gmx;
+        }
+        if ($line =~ m/\[FREKI_VERSION\]/gmx) {
+            $line =~ s/\[FREKI_VERSION\]/$VERSION/gmx;
+        }
+        if ($line =~ m/\[FREKI_MENU\]/gmx) {
+            $line =~ s/\[FREKI_MENU\]//gmx;
+            $line .= "<ul>\n";
+            $line .= "<li><a href='./index.html'>index</a></li>\n";
+            $line .= "<li><a href='./articles.html'>articles</a></li>\n";
+            for (sort keys %menu_links) {
+                $line .= "<li><a href='./pages/$_.html'>$menu_links{$_}</a></li>\n";
+            }
+            $line .= "</ul>\n";
+        }
+        my $MAX_ARTICLES = 3;
+        my $i = 1;
+        if ($line =~ m/\[FREKI_CONTENT\]/gmx) {
+            $line =~ s/\[FREKI_CONTENT\]//gmx;
+            if (keys %{$S->{'articles'}}) {
+                for my $y (reverse sort keys %{$S->{'articles'}}) {
+                    for my $m (reverse sort keys %{$S->{'articles'}{$y}}) {
+                        for my $d (reverse sort keys %{$S->{'articles'}{$y}{$m}}) {
+                            for my $id (sort keys %{$S->{'articles'}{$y}{$m}{$d}}) {
+                                $line .= "<div class='article'>\n";
+                                $line .= "<div class='article_topic'>\n";
+                                $line .= "<a href='./articles/$id.html'>" . $S->{'articles'}{$y}{$m}{$d}{$id}{'topic'} . "</a>";
+                                $line .= "</div>\n";
+                                $line .= "<div class='article_date'>\n";
+                                $line .= "$y-$m-$d\n";
+                                $line .= "</div>\n";
+                                $line .= "<div style='clear: both;'></div>";
+                                $line .= htmlify($S->{'articles'}{$y}{$m}{$d}{$id}{'text'});
+                                $line .= "</div>\n";
+                                $i++;
+                                last if $i == $MAX_ARTICLES;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        print $INDEX_FD $line;
+    }
+
+    close $TEMPLATE_FD;
+    close $INDEX_FD;
+
+    ########################################################### ARTICLES.HTML #################################
+    print ">> Generating article overview\n";
+    open my $ARTICLE_FD, "> $HTML_DIR/articles.html";
+    open $TEMPLATE_FD, "< $TEMPLATE";
+    while (my $line = <$TEMPLATE_FD>) {
+        if ($line =~ m/\[SITE_TITLE\]/gmx) {
+            $line =~ s/\[SITE_TITLE\]/$C->{'site_title'}/gmx;
+        }
+        if ($line =~ m/\[CSS_LOCATION\]/gmx) {
+            $line =~ s/\[CSS_LOCATION\]/\.\/css\/style.css/gmx;
+        }
+        if ($line =~ m/\[SITE_SUBTITLE\]/gmx) {
+            $line =~ s/\[SITE_SUBTITLE\]/$C->{'site_subtitle'}/gmx;
+        }
+        if ($line =~ m/\[FREKI_VERSION\]/gmx) {
+            $line =~ s/\[FREKI_VERSION\]/$VERSION/gmx;
+        }
+        if ($line =~ m/\[FREKI_MENU\]/gmx) {
+            $line =~ s/\[FREKI_MENU\]//gmx;
+            $line .= "<ul>\n";
+            $line .= "<li><a href='./index.html'>index</a></li>\n";
+            $line .= "<li><a href='./articles.html'>articles</a></li>\n";
+            for (sort keys %menu_links) {
+                $line .= "<li><a href='./pages/$_.html'>$menu_links{$_}</a></li>\n";
+            }
+            $line .= "</ul>\n";
+        }
+        my $prev_month = sprintf("%02d", $now_m-1);
+        my $next_month = sprintf("%02d", $now_m+1);
+        my ($prev_year, $next_year) = ($now_y, $now_y);
+        
+        # sanity check
+        if ($prev_month == 0) { $prev_month = 12; $prev_year--; }
+        if ($next_month == 13) { $next_month = "01"; $next_year++; }
+        if ($line =~ m/\[FREKI_CONTENT\]/gmx) {
+            $line =~ s/\[FREKI_CONTENT\]//gmx;
+            if (keys %{$S->{'articles'}}) {
+                $line .= "<a href='./articles_${prev_year}_${prev_month}.html'>&lt;&lt; previous month</a>" if keys %{$S->{'articles'}{$prev_year}{$prev_month}};
+                for my $y (reverse sort keys %{$S->{'articles'}}) {
+                    next if $y != $now_y;
+                    for my $m (reverse sort keys %{$S->{'articles'}{$y}}) {
+                        next if $m != $now_m;
+                        for my $d (reverse sort keys %{$S->{'articles'}{$y}{$m}}) {
+                            for my $id (sort keys %{$S->{'articles'}{$y}{$m}{$d}}) {
+                                $line .= "<div class='article'>\n";
+                                $line .= "<div class='article_topic'>\n";
+                                $line .= "<a href='./articles/$id.html'>" . $S->{'articles'}{$y}{$m}{$d}{$id}{'topic'} . "</a>";
+                                $line .= "</div>\n";
+                                $line .= "<div class='article_date'>\n";
+                                $line .= "$y-$m-$d\n";
+                                $line .= "</div>\n";
+                                $line .= "<div style='clear: both;'></div>";
+                                $line .= htmlify($S->{'articles'}{$y}{$m}{$d}{$id}{'text'});
+                                $line .= "</div>\n";
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        print $ARTICLE_FD $line;
+    }
+
+    close $TEMPLATE_FD;
+    close $ARTICLE_FD;
+
+    ########################################################### PAGES #################################
+    print ">> Generating pages\n";
+    for my $lid (sort keys %menu_links) {
+        print "\t->$lid ($menu_links{$lid})\n";
+        mkdir "$HTML_DIR/pages" unless -d "$HTML_DIR/pages";
+        open my $PAGE_FD, "> $HTML_DIR/pages/$lid.html";
+        open $TEMPLATE_FD, "< $TEMPLATE";
+        while (my $line = <$TEMPLATE_FD>) {
+            if ($line =~ m/\[SITE_TITLE\]/gmx) {
+                $line =~ s/\[SITE_TITLE\]/$C->{'site_title'}/gmx;
+            }
+            if ($line =~ m/\[CSS_LOCATION\]/gmx) {
+                $line =~ s/\[CSS_LOCATION\]/\.\.\/css\/style.css/gmx;
+            }   
+            if ($line =~ m/\[SITE_SUBTITLE\]/gmx) {
+                $line =~ s/\[SITE_SUBTITLE\]/$C->{'site_subtitle'}/gmx;
+            }
+            if ($line =~ m/\[FREKI_VERSION\]/gmx) {
+                $line =~ s/\[FREKI_VERSION\]/$VERSION/gmx;
+            }
+            if ($line =~ m/\[FREKI_MENU\]/gmx) {
+                $line =~ s/\[FREKI_MENU\]//gmx;
+                $line .= "<ul>\n";
+                $line .= "<li><a href='../index.html'>index</a></li>\n";
+                $line .= "<li><a href='../articles.html'>articles</a></li>\n";
+                for (sort keys %menu_links) {
+                    $line .= "<li><a href='../pages/$_.html'>$menu_links{$_}</a></li>\n";
+                }
+                $line .= "</ul>\n";
+            }
+            if ($line =~ m/\[FREKI_CONTENT\]/gmx) {
+                $line =~ s/\[FREKI_CONTENT\]//gmx;
+                for my $y (sort keys %{$S->{'pages'}}) {
+                    for my $m (sort keys %{$S->{'pages'}{$y}}) {
+                        for my $d (sort keys %{$S->{'pages'}{$y}{$m}}) {
+                            for my $id (sort keys %{$S->{'pages'}{$y}{$m}{$d}}) {
+                                if ($id eq $lid) {
+                                    $line .= "<div class='article'>\n";
+                                    $line .= "<div class='article_topic'>\n";
+                                    $line .= $S->{'pages'}{$y}{$m}{$d}{$id}{'topic'};
+                                    $line .= "</div>\n";
+                                    $line .= "<div class='article_date'>\n";
+                                    $line .= "$y-$m-$d\n";
+                                    $line .= "</div>\n";
+                                    $line .= "<div style='clear: both;'></div>";
+                                    $line .= htmlify($S->{'pages'}{$y}{$m}{$d}{$id}{'text'});
+                                    $line .= "</div>\n";
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            print $PAGE_FD $line;
+
+        }
+        close $TEMPLATE_FD;
+        close $PAGE_FD;
+    }
+
+    ########################################################### SINGLE ARTICLES #################################
+    print ">> Generating articles\n";
+    
+    # we need the id's for the links
+    my %links;
+    for my $y (sort keys %{$S->{'articles'}}) {
+        for my $m (sort keys %{$S->{'articles'}{$y}}) {
+            for my $d (sort keys %{$S->{'articles'}{$y}{$m}}) {
+                for my $id (sort keys %{$S->{'articles'}{$y}{$m}{$d}}) {
+                    $links{$id} = $S->{'articles'}{$y}{$m}{$d}{$id}{'topic'};
+                }
+            }
+        }
+    }
+    # create article page for every ID
+    for my $lid (sort keys %links) {
+        print "\t->$lid ($links{$lid})\n";
+        mkdir "$HTML_DIR/articles" unless -d "$HTML_DIR/articles";
+        open my $ARTICLE_FD, "> $HTML_DIR/articles/$lid.html";
+        open $TEMPLATE_FD, "< $TEMPLATE";
+        while (my $line = <$TEMPLATE_FD>) {
+            if ($line =~ m/\[SITE_TITLE\]/gmx) {
+                $line =~ s/\[SITE_TITLE\]/$C->{'site_title'}/gmx;
+            }
+            if ($line =~ m/\[CSS_LOCATION\]/gmx) {
+                $line =~ s/\[CSS_LOCATION\]/\.\.\/css\/style.css/gmx;
+            }   
+            if ($line =~ m/\[SITE_SUBTITLE\]/gmx) {
+                $line =~ s/\[SITE_SUBTITLE\]/$C->{'site_subtitle'}/gmx;
+            }
+            if ($line =~ m/\[FREKI_VERSION\]/gmx) {
+                $line =~ s/\[FREKI_VERSION\]/$VERSION/gmx;
+            }
+            if ($line =~ m/\[FREKI_MENU\]/gmx) {
+                $line =~ s/\[FREKI_MENU\]//gmx;
+                $line .= "<ul>\n";
+                $line .= "<li><a href='../index.html'>index</a></li>\n";
+                $line .= "<li><a href='../articles.html'>articles</a></li>\n";
+                for (sort keys %menu_links) {
+                    $line .= "<li><a href='../pages/$_.html'>$menu_links{$_}</a></li>\n";
+                }
+                $line .= "</ul>\n";
+            }
+            if ($line =~ m/\[FREKI_CONTENT\]/gmx) {
+                $line =~ s/\[FREKI_CONTENT\]//gmx;
+                for my $y (reverse sort keys %{$S->{'articles'}}) {
+                    for my $m (reverse sort keys %{$S->{'articles'}{$y}}) {
+                        for my $d (reverse sort keys %{$S->{'articles'}{$y}{$m}}) {
+                            for my $id (sort keys %{$S->{'articles'}{$y}{$m}{$d}}) {
+                                if ($id eq $lid) {
+                                    $line .= "<div class='article'>\n";
+                                    $line .= "<div class='article_topic'>\n";
+                                    $line .= $S->{'articles'}{$y}{$m}{$d}{$id}{'topic'};
+                                    $line .= "</div>\n";
+                                    $line .= "<div class='article_date'>\n";
+                                    $line .= "$y-$m-$d\n";
+                                    $line .= "</div>\n";
+                                    $line .= "<div style='clear: both;'></div>";
+                                    $line .= htmlify($S->{'articles'}{$y}{$m}{$d}{$id}{'text'});
+                                    $line .= "</div>\n";
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            print $ARTICLE_FD $line;
+
+        }
+        close $TEMPLATE_FD;
+        close $ARTICLE_FD;
+    }
+
+
+    ########################################################### ARTICLES.YEARLY #################################
+    print ">> Generating yearly article pages\n";
+    if (keys %{$S->{'articles'}}) {
+        for my $y (sort keys %{$S->{'articles'}}) { # articles_2015.html for example
+            open my $ARTFD, "> $HTML_DIR/articles_$y.html";
+            print "\t-> articles_$y.html\n";
+            open $TEMPLATE_FD, "< $TEMPLATE";
+            while (my $line = <$TEMPLATE_FD>) {
+                if ($line =~ m/\[SITE_TITLE\]/gmx) {
+                    $line =~ s/\[SITE_TITLE\]/$C->{'site_title'}/gmx;
+                }
+                if ($line =~ m/\[CSS_LOCATION\]/gmx) {
+                    $line =~ s/\[CSS_LOCATION\]/\.\/css\/style.css/gmx;
+                }
+                if ($line =~ m/\[SITE_SUBTITLE\]/gmx) {
+                    $line =~ s/\[SITE_SUBTITLE\]/$C->{'site_subtitle'}/gmx;
+                }
+                if ($line =~ m/\[FREKI_VERSION\]/gmx) {
+                    $line =~ s/\[FREKI_VERSION\]/$VERSION/gmx;
+                }
+                if ($line =~ m/\[FREKI_MENU\]/gmx) {
+                    $line =~ s/\[FREKI_MENU\]//gmx;
+                    $line .= "<ul>\n";
+                    $line .= "<li><a href='./index.html'>index</a></li>\n";
+                    $line .= "<li><a href='./articles.html'>articles</a></li>\n";
+                    for (sort keys %menu_links) {
+                        $line .= "<li><a href='./pages/$_.html'>$menu_links{$_}</a></li>\n";
+                    }
+                    $line .= "</ul>\n";
+                }
+                if ($line =~ m/\[FREKI_CONTENT\]/gmx) {
+                    $line =~ s/\[FREKI_CONTENT\]//gmx;
+                    my ($prev_year, $next_year) = ($y-1, $y+1);
+                    $line .= "<a href='./articles_$prev_year.html'>&lt;&lt; previous year</a> " if keys %{$S->{'articles'}{$prev_year}};
+                    $line .= "| <a href='./articles_$next_year.html'>next year &gt;&gt;</a>" if $next_year <= $now_y;
+
+                    for my $m (reverse sort keys %{$S->{'articles'}{$y}}) {
+                        for my $d (reverse sort keys %{$S->{'articles'}{$y}{$m}}) {
+                            for my $id (sort keys %{$S->{'articles'}{$y}{$m}{$d}}) {
+                                $line .= "<div class='article'>\n";
+                                $line .= "<div class='article_topic'>\n";
+                                $line .= "<a href='./articles/$id.html'>" . $S->{'articles'}{$y}{$m}{$d}{$id}{'topic'} . "</a>";
+                                $line .= "</div>\n";
+                                $line .= "<div class='article_date'>\n";
+                                $line .= "$y-$m-$d\n";
+                                $line .= "</div>\n";
+                                $line .= "<div style='clear: both;'></div>";
+                                $line .= htmlify($S->{'articles'}{$y}{$m}{$d}{$id}{'text'});
+                                $line .= "</div>\n";
+                            }
+                        }
+                    }
+                }
+                print $ARTFD $line;
+            }
+            close $TEMPLATE_FD;
+            close $ARTFD;
+        }
+    }
+    
+    ########################################################### ARTICLES.MONTHLY #################################
+    print ">> Generating monthly article pages\n";
+    if (keys %{$S->{'articles'}}) {
+        for my $y (sort keys %{$S->{'articles'}}) { 
+            for my $m (sort keys %{$S->{'articles'}{$y}}) {
+                next unless keys %{$S->{'articles'}{$y}{$m}};
+                open my $ARTFD, "> $HTML_DIR/articles_${y}_${m}.html";
+                print "\t-> articles_${y}_${m}.html\n";
+                open $TEMPLATE_FD, "< $TEMPLATE";
+                while (my $line = <$TEMPLATE_FD>) {
+                    if ($line =~ m/\[SITE_TITLE\]/gmx) {
+                        $line =~ s/\[SITE_TITLE\]/$C->{'site_title'}/gmx;
+                    }
+                    if ($line =~ m/\[CSS_LOCATION\]/gmx) {
+                        $line =~ s/\[CSS_LOCATION\]/\.\/css\/style.css/gmx;
+                    }
+                    if ($line =~ m/\[SITE_SUBTITLE\]/gmx) {
+                        $line =~ s/\[SITE_SUBTITLE\]/$C->{'site_subtitle'}/gmx;
+                    }
+                    if ($line =~ m/\[FREKI_VERSION\]/gmx) {
+                        $line =~ s/\[FREKI_VERSION\]/$VERSION/gmx;
+                    }
+                    if ($line =~ m/\[FREKI_MENU\]/gmx) {
+                        $line =~ s/\[FREKI_MENU\]//gmx;
+                        $line .= "<ul>\n";
+                        $line .= "<li><a href='./index.html'>index</a></li>\n";
+                        $line .= "<li><a href='./articles.html'>articles</a></li>\n";
+                        for (sort keys %menu_links) {
+                            $line .= "<li><a href='./pages/$_.html'>$menu_links{$_}</a></li>\n";
+                        }
+                        $line .= "</ul>\n";
+                    }
+                    if ($line =~ m/\[FREKI_CONTENT\]/gmx) {
+                        $line =~ s/\[FREKI_CONTENT\]//gmx;
+
+                        # calculate prev/next months
+                        my $prev_month = sprintf("%02d", $m-1);
+                        my $next_month = sprintf("%02d", $m+1);
+                        my ($prev_year, $next_year) = ($y, $y);
+
+                        # sanity check
+                        if ($prev_month == 0) { $prev_month = 12; $prev_year--; }
+                        if ($next_month == 13) { $next_month = "01"; $next_year++; }
+
+                        $line .= "<a href='./articles_${prev_year}_${prev_month}.html'>&lt;&lt; previous month</a> " if keys %{$S->{'articles'}{$prev_year}{$prev_month}};
+                        $line .= "| <a href='./articles_${next_year}_${next_month}.html'>next month &gt;&gt;</a>" if ($next_year <= $now_y && $next_month <= $now_m);
+                        for my $d (reverse sort keys %{$S->{'articles'}{$y}{$m}}) {
+                            for my $id (sort keys %{$S->{'articles'}{$y}{$m}{$d}}) {
+                                $line .= "<div class='article'>\n";
+                                $line .= "<div class='article_topic'>\n";
+                                $line .= "<a href='./articles/$id.html'>" . $S->{'articles'}{$y}{$m}{$d}{$id}{'topic'} . "</a>";
+                                $line .= "</div>\n";
+                                $line .= "<div class='article_date'>\n";
+                                $line .= "$y-$m-$d\n";
+                                $line .= "</div>\n";
+                                $line .= "<div style='clear: both;'></div>";
+                                $line .= htmlify($S->{'articles'}{$y}{$m}{$d}{$id}{'text'});
+                                $line .= "</div>\n";
+                            }
+                        }
+                    }
+                    print $ARTFD $line;
+                }
+                close $TEMPLATE_FD;
+                close $ARTFD;
+            }
+        }
+    }
+
+}
+
+# convert text to html
+sub htmlify {
+    my $text = shift;
+    $text =~ s/</&lt;/g;
+    $text =~ s/>/&gt;/g;
+    $text =~ s/\r\n/\n/g;
+    $text =~ s/\n/<br \/>/g;
+    $text =~ s/___(.+?)___/<u>$1<\/u>/g;
+    $text =~ s/\/\/\/(.+?)\/\/\//<i>$1<\/i>/g;
+    $text =~ s/\*\*\*(.+?)\*\*\*/<b>$1<\/b>/g;
+    $text =~ s/link::"(.+?)"::"(.+?)"/<a href='$1'>$2<\/a>/g;
+    $text =~ s/img::"(.+?)"::"(.+?)"/<img src='$1' alt='$2' \/>/g;
+    $text =~ s/CODE_START(.+?)CODE_END/<pre class='code'>$1<\/pre>/gmx;
+    $text =~ s/<pre class='code'><br \/>/<pre class='code'>/g;
+    return $text;
+}
+
+# usage        
+sub print_usage {
+    print qq(
+    freki $VERSION
+    
+    quick overview:
+    
+    freki help
+    freki add FILE
+    freki delete ID
+    freki replace ID FILE
+    freki list
+    freki update
+
+);
+}
+
+sub delete_content {
+    my $gid = shift;
+    my $deleted = 0;
+    for my $y (keys %{$S->{'articles'}}) {
+        for my $m (keys %{$S->{'articles'}{$y}}) {
+            for my $d (keys %{$S->{'articles'}{$y}{$m}}) {
+                for my $id (keys %{$S->{'articles'}{$y}{$m}{$d}}) {
+                    if ($id =~ m/^$gid.*/) {
+                        delete $S->{'articles'}{$y}{$m}{$d}{$id}; 
+                        $gid = $id;
+                        $deleted++;
+                    }
+                }
+                delete $S->{'articles'}{$y}{$m}{$d} unless keys %{$S->{'articles'}{$y}{$m}{$d}};
+            }
+            delete $S->{'articles'}{$y}{$m} unless keys %{$S->{'articles'}{$y}{$m}};
+        }
+        delete $S->{'articles'}{$y} unless keys %{$S->{'articles'}{$y}};
+    }
+    for my $y (keys %{$S->{'pages'}}) {
+        for my $m (keys %{$S->{'pages'}{$y}}) {
+            for my $d (keys %{$S->{'pages'}{$y}{$m}}) {
+                for my $id (keys %{$S->{'pages'}{$y}{$m}{$d}}) {
+                    if ($id =~ m/^$gid.*/) {
+                        delete $S->{'pages'}{$y}{$m}{$d}{$id};
+                        $gid = $id;
+                        $deleted++;
+                    }
+                }
+                delete $S->{'pages'}{$y}{$m}{$d} unless keys %{$S->{'pages'}{$y}{$m}{$d}};
+            }
+            delete $S->{'pages'}{$y}{$m} unless keys %{$S->{'pages'}{$y}{$m}};
+        }
+        delete $S->{'pages'}{$y} unless keys %{$S->{'pages'}{$y}};
+    }
+    if ($deleted) {
+        print "<< deleted '$gid', please run '$0 update' to see changes\n";
+    }
+    else {
+        print "!! couldn't find page/article with id '$gid', please check\n";
+    }
+    nstore($S, $STORAGE);
+}
+
+sub list_contents {
+    print "articles:\n";
+    for my $y (keys %{$S->{'articles'}}) {
+        for my $m (keys %{$S->{'articles'}{$y}}) {
+            for my $d (keys %{$S->{'articles'}{$y}{$m}}) {
+                for my $id (keys %{$S->{'articles'}{$y}{$m}{$d}}) {
+                    print "\t$id ($S->{'articles'}{$y}{$m}{$d}{$id}{'topic'})\n";
+                }
+            }
+        }
+    }
+    print "pages:\n";
+    for my $y (keys %{$S->{'pages'}}) {
+        for my $m (keys %{$S->{'pages'}{$y}}) {
+            for my $d (keys %{$S->{'pages'}{$y}{$m}}) {
+                for my $id (keys %{$S->{'pages'}{$y}{$m}{$d}}) {
+                    print "\t$id ($S->{'pages'}{$y}{$m}{$d}{$id}{'topic'})\n";
+                }
+            }
+        }
+    }
+}
+
+
+if ($ARGV[0]) {
+    if ($ARGV[0] eq "help") {
+        print_usage() and exit 0;
+    }
+    elsif ($ARGV[0] eq "list") {
+        list_contents() and exit 0;
+    }
+    elsif ($ARGV[0] eq "add") {
+        if ($ARGV[1]) {
+            if (-e $ARGV[1]) {
+                add_content($ARGV[1]);
+            }
+            else {
+                print " !! $ARGV[1] is not a file, please specify a path to a valid content file.\n"; 
+            }
+        }
+        else {
+            print " !! You have to specify the path to a valid content file.\n";
+            exit 2;
+        }
+    }
+    elsif ($ARGV[0] eq "delete") {
+        if ($ARGV[1]) {
+            if ($ARGV[1] =~ m/[[:alnum:]]{1,16}/) {
+                delete_content($ARGV[1]);
+            }
+            else { 
+                print " !! $ARGV[1] is not a valid id, please specify a correct id.\n"; 
+            }
+        }
+        else {
+            print " !! You have to specify a valid content id.\n";
+            exit 3;
+        }
+    }
+    elsif ($ARGV[0] eq "replace") {
+        if ($ARGV[1]) {
+            if ($ARGV[1] =~ m/[[:alnum:]]{1,16}/) {
+                if ($ARGV[2]) {
+                    if (-e $ARGV[2]) {
+                        delete_content($ARGV[1]);
+                        add_content($ARGV[2]);
+                    }
+                    else { 
+                        print " !! $ARGV[2] is not a file, please specify a path to the content file.\n";
+                    }
+                }
+                else {
+                    print " !! You have to specify a valid content file\n";
+                    exit 4;
+                }
+            }
+            else { 
+                print " !! $ARGV[1] is not a valid id, please specify a correct id.\n"; 
+            }
+        }
+        else {
+            print " !! You have to specify the id you want to be replaced.\n";
+            exit 5;
+        }
+    }
+    elsif ($ARGV[0] eq "update") {
+        update_freki();
+    }
+    else { 
+        print " !! You entered an unknown parameter, please check. (try $0 help)\n"; 
+    }
+}
+else {
+    print " !! not enough parameters given, please check (try $0 help)\n";
+}

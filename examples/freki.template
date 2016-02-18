@@ -1,0 +1,63 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<link rel='stylesheet' type='text/css' href='[CSS_LOCATION]' />
+
+<title>[SITE_TITLE]</title>
+
+</head>
+
+<body>
+<div class='heading'>
+    <div class='freki'>
+        <pre><b>
+                               __
+                             .d$$b
+                           .' TO$;\
+                          /  : TP._;
+                         / _.;  :Tb|
+                        /   /   ;j$j
+                    _.-"       d$$$$
+                  .' ..       d$$$$;
+                 /  /P'      d$$$$P. |\
+                /   "      .d$$$P' |\^"l
+              .'           `T$P^"""""  :
+          ._.'      _.'                ;
+       `-.-".-'-' ._.       _.-"    .-"
+     `.-" _____  ._              .-"
+    -(.g$$$$$$$b.              .'
+      ""^^T$$$P^)            .(:
+        _/  -"  /.'         /:/;
+     ._.'-'`-'  ")/         /;/;
+  `-.-"..--""   " /         /  ;
+ .-" ..--""        -'          :
+ ..--""--.-"         (\      .-(\
+   ..--""              `-\(\/;`
+     _.                      :
+                             ;`-
+                            :\
+                            ; freki [FREKI_VERSION] 
+        </b></pre>
+    </div>
+    <div class='over_menu'>
+        <div class='title'>
+        [SITE_TITLE]
+        </div>
+        <div class='subtitle'>
+        [SITE_SUBTITLE]
+        </div>
+        <div class='menu'>
+        [FREKI_MENU]
+    </div>
+    </div>
+</div>
+<div style='clear: both;'></div>
+<br />
+<div class='content'>
+[FREKI_CONTENT]
+</div>
+</body>
+</html>

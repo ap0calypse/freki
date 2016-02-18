@@ -1,0 +1,27 @@
+FREKI_CATEGORY: "articles"
+FREKI_TOPIC: "awesome article"
+START_TEXT
+***This is bold text***
+///This is italic text///
+___This is underlined text___
+
+As you can see, line breaks are automatically inserted.
+
+If you want to include links, you can do it like link::"http://somewhere.else"::"this."
+
+It is also possible to include external pictures, like this:
+
+img::"http://somewhere.else/pic.png"::"alternate text"
+
+If you want to include code, you can do it like this:
+
+CODE_START
+#include <stdio.h>
+int main() {
+    printf("Hello world\n");
+    return 0;
+}
+CODE_END
+
+Pretty nifty huh?
+END_TEXT

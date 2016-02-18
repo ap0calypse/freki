@@ -1,0 +1,89 @@
+Freki
+
+    In Norse mythology, Geri and Freki (Old Norse, both meaning "the ravenous"
+    or "greedy one") are two wolves which are said to accompany the god Odin.
+
+
+About freki
+------------
+
+freki is a small but yet pretty powerful tool to create
+pseudo-dynamic (aka. static) website content. It aims to 
+be a replacement for bazinga, which i wrote 4-5 years ago.
+
+freki has the same approach as bazinga, but has less
+dependencies since it has less features. I kicked these
+lesser used features out and rewrote the whole thing.
+
+In addition, freki now has a simpler interface and is
+altogether smaller. A major improvement is the design
+of the content files, which are very simple to edit now.
+
+
+Features
+---------
+    
+    - easy configuration (~/.freki/freki.conf)
+    - easy to maintain and backup (~/.freki/freki.dat)
+    - Pseudo-Markdown (my own interpretation of it)
+    - Yearly/Monthly article overviews
+    - ... more to come
+
+
+Prerequisites
+--------------
+
+As already mentioned, freki is much smaller than bazinga.
+Therefor it has NO PREREQUISITES except Perl. 
+
+You don't even need a webserver if you just want it to
+act as kind of diary on your local harddrive. If you want
+to publish your thoughts, just upload the ~/.freki/html 
+directory to your webserver and you are fine. Nothing else
+is needed.
+
+
+Configuration
+--------------
+
+All needed files should come with this bundle. Customisation
+is done by editing either the index.template (~/.freki/index.template)
+or the css file (~/.freki/html/css/style.css).
+
+If you start freki for the first time, it will create some directories
+in your home directory (~/.freki, ~/.freki/html and ~/.freki/html/css).
+
+In the examples/ directory, which should be available if you cloned
+this repository, you can find example files of this template and other
+files.
+
+This files are needed in the following places for freki to work properly:
+
+    style.css       -> ~/.freki/html/css/style.css
+    freki.template  -> ~/.freki/freki.template
+    freki.conf      -> ~/.freki/freki.conf
+
+freki.template should not be edited unless you know what you are doing.
+Same applies to style.css, but that doesn't mean it can't be done. 
+Simple adaptions to color/fonts/basic design can be done easily...
+... (if you know CSS/HTML) ;)
+
+
+Backup and Restore
+-------------------
+
+A feature you might miss if you already know bazinga is the lacking
+git history. I opted this feature out because I don't see the need
+for it. A simple freki backup which could be one daily/weekly/whatever
+cronjob, could look like this:
+
+    cp ~/.freki/freki.dat /path/to/your/safe_place/freki.dat.$(date -I'date')
+
+which would save your dat-file appended with a timestamp to your 
+backup directory.
+
+
+License
+--------
+
+See LICENSE.
