@@ -47,7 +47,7 @@ Configuration
 --------------
 
 All needed files should come with this bundle. Customisation
-is done by editing either the index.template (~/.freki/index.template)
+is done by editing either the freki.template (~/.freki/freki.template)
 or the css file (~/.freki/html/css/style.css).
 
 If you start freki for the first time, it will create some directories
