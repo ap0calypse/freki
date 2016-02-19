@@ -10,7 +10,7 @@ use POSIX qw/strftime/;
 # authors:      see AUTHORS
 # license:      see LICENSE
 
-my $VERSION     = "0.1";
+my $VERSION     = "0.2";
 my $STORAGE_DIR = "$HOME/.freki";
 my $CONFIG      = "$STORAGE_DIR/freki.conf";
 my $TEMPLATE    = "$STORAGE_DIR/freki.template";
@@ -55,6 +55,7 @@ while (<$CONFFD>) {
     $C->{'owner_email'}   = $1 if m/.*OWNER_EMAIL: *\"(.+)\".*/;
     $C->{'site_title'}    = $1 if m/.*SITE_TITLE: *\"(.+)\".*/;
     $C->{'site_subtitle'} = $1 if m/.*SITE_SUBTITLE: *\"(.+)\".*/;
+    $C->{'max_articles'}  = $1 if m/.*MAX_ARTICLES_INDEX: *\"(.+)\".*/;
 }
 close $CONFFD;
 
@@ -161,7 +162,7 @@ sub update_freki {
             }
             $line .= "</ul>\n";
         }
-        my $MAX_ARTICLES = 3;
+        my $MAX_ARTICLES = $C->{'max_articles'} || 3;
         my $i = 1;
         if ($line =~ m/\[FREKI_CONTENT\]/gmx) {
             $line =~ s/\[FREKI_CONTENT\]//gmx;
@@ -597,7 +598,7 @@ sub delete_content {
         delete $S->{'pages'}{$y} unless keys %{$S->{'pages'}{$y}};
     }
     if ($deleted) {
-        print "<< deleted '$gid', please run '$0 update' to see changes\n";
+        print "<< deleted '$gid', please update to see changes\n";
     }
     else {
         print "!! couldn't find page/article with id '$gid', please check\n";
