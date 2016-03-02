@@ -4,6 +4,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 
 <head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 <link rel='stylesheet' type='text/css' href='[CSS_LOCATION]' />
 
 <title>[SITE_TITLE]</title>
@@ -55,7 +56,6 @@
     </div>
 </div>
 <div style='clear: both;'></div>
-<br />
 <div class='content'>
 [FREKI_CONTENT]
 </div>
