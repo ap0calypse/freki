@@ -23,5 +23,9 @@ int main() {
 }
 CODE_END
 
-Pretty nifty huh?
+Pretty nifty huh? but wait, there is more ...
+
+ul::[first point||second point||and so on||...]
+
+listings are possible too :)
 END_TEXT

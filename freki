@@ -412,6 +412,18 @@ sub htmlify {
     $text =~ s/\*\*\*(.+?)\*\*\*/<b>$1<\/b>/g;
     $text =~ s/link::"(.+?)"::"(.+?)"/<a href='$1'>$2<\/a>/g;
     $text =~ s/img::"(.+?)"::"(.+?)"/<img src='$1' alt='$2' \/>/g;
+    if ($text =~ m/ul::\[(.+?)\]/g) {
+        my $t = $1;
+        my @items = split /\|\|/, $t;
+        my $final_items = "<ul>";
+        for (@items) {
+            $final_items .= "<li>" . $_ . "</li>";
+        }
+        $final_items .= "</ul>";
+
+        $text =~ s/ul::\[.+?\]/$final_items/g;
+    }
+    $text =~ s/ul::"(.+?)"::"(.+?)"/<img src='$1' alt='$2' \/>/g;
     $text =~ s/CODE_START(.+?)CODE_END/<pre class='code'>$1<\/pre>/gmx;
     $text =~ s/<pre class='code'><br \/>/<pre class='code'>/g;
     return $text;
