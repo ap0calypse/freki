@@ -157,7 +157,7 @@ sub update_freki {
             $line .= "<ul>\n";
             $line .= "<li><a href='./index.html'>index</a></li>\n";
             $line .= "<li><a href='./articles.html'>articles</a></li>\n";
-            for (sort keys %menu_links) {
+            for (sort {$menu_links{$a} cmp $menu_links{$b}} keys %menu_links) {
                 $line .= "<li><a href='./pages/$_.html'>$menu_links{$_}</a></li>\n";
             }
             $line .= "</ul>\n";
@@ -217,7 +217,7 @@ sub update_freki {
             $line .= "<ul>\n";
             $line .= "<li><a href='./index.html'>index</a></li>\n";
             $line .= "<li><a href='./articles.html'>articles</a></li>\n";
-            for (sort keys %menu_links) {
+            for (sort {$menu_links{$a} cmp $menu_links{$b}} keys %menu_links) {
                 $line .= "<li><a href='./pages/$_.html'>$menu_links{$_}</a></li>\n";
             }
             $line .= "</ul>\n";
@@ -286,7 +286,7 @@ sub update_freki {
                 $line .= "<ul>\n";
                 $line .= "<li><a href='../index.html'>index</a></li>\n";
                 $line .= "<li><a href='../articles.html'>articles</a></li>\n";
-                for (sort keys %menu_links) {
+                for (sort {$menu_links{$a} cmp $menu_links{$b}} keys %menu_links) {
                     $line .= "<li><a href='../pages/$_.html'>$menu_links{$_}</a></li>\n";
                 }
                 $line .= "</ul>\n";
@@ -360,7 +360,7 @@ sub update_freki {
                 $line .= "<ul>\n";
                 $line .= "<li><a href='../index.html'>index</a></li>\n";
                 $line .= "<li><a href='../articles.html'>articles</a></li>\n";
-                for (sort keys %menu_links) {
+                for (sort {$menu_links{$a} cmp $menu_links{$b}} keys %menu_links) {
                     $line .= "<li><a href='../pages/$_.html'>$menu_links{$_}</a></li>\n";
                 }
                 $line .= "</ul>\n";
@@ -422,7 +422,7 @@ sub update_freki {
                     $line .= "<ul>\n";
                     $line .= "<li><a href='./index.html'>index</a></li>\n";
                     $line .= "<li><a href='./articles.html'>articles</a></li>\n";
-                    for (sort keys %menu_links) {
+                    for (sort {$menu_links{$a} cmp $menu_links{$b}} keys %menu_links) {
                         $line .= "<li><a href='./pages/$_.html'>$menu_links{$_}</a></li>\n";
                     }
                     $line .= "</ul>\n";
@@ -484,7 +484,7 @@ sub update_freki {
                         $line .= "<ul>\n";
                         $line .= "<li><a href='./index.html'>index</a></li>\n";
                         $line .= "<li><a href='./articles.html'>articles</a></li>\n";
-                        for (sort keys %menu_links) {
+                        for (sort {$menu_links{$a} cmp $menu_links{$b}} keys %menu_links) {
                             $line .= "<li><a href='./pages/$_.html'>$menu_links{$_}</a></li>\n";
                         }
                         $line .= "</ul>\n";
