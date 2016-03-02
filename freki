@@ -10,7 +10,7 @@ use POSIX qw/strftime/;
 # authors:      see AUTHORS
 # license:      see LICENSE
 
-my $VERSION     = "0.2";
+my $VERSION     = "0.3";
 my $STORAGE_DIR = "$HOME/.freki";
 my $CONFIG      = "$STORAGE_DIR/freki.conf";
 my $TEMPLATE    = "$STORAGE_DIR/freki.template";
