@@ -502,7 +502,7 @@ sub update_freki {
                         if ($next_month == 13) { $next_month = "01"; $next_year++; }
 
                         $line .= "<a href='./articles_${prev_year}_${prev_month}.html'>&lt;&lt; previous month</a> " if keys %{$S->{'articles'}{$prev_year}{$prev_month}};
-                        $line .= "| <a href='./articles_${next_year}_${next_month}.html'>next month &gt;&gt;</a>" if ($next_year <= $now_y && $next_month <= $now_m);
+                        $line .= " <a href='./articles_${next_year}_${next_month}.html'>next month &gt;&gt;</a>" if ($next_year <= $now_y && $next_month <= $now_m) and keys %{$S->{'articles'}{$now_y}{$now_m}};
                         for my $d (reverse sort keys %{$S->{'articles'}{$y}{$m}}) {
                             for my $id (sort keys %{$S->{'articles'}{$y}{$m}{$d}}) {
                                 $line .= "<div class='article'>\n";
