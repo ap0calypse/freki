@@ -10,7 +10,7 @@ use POSIX qw/strftime/;
 # authors:      see AUTHORS
 # license:      see LICENSE
 
-my $VERSION     = "0.3";
+my $VERSION     = "0.4";
 my $STORAGE_DIR = "$HOME/.freki";
 my $CONFIG      = "$STORAGE_DIR/freki.conf";
 my $TEMPLATE    = "$STORAGE_DIR/freki.template";
@@ -21,6 +21,9 @@ my $CSS_FILE    = "$CSS_DIR/style.css";
 
 # hash refs for data and config
 my ($S, $C);
+
+# needed in different subs, therefor global
+my %menu_links;
 
 # check if freki storage dir is present, otherwise create the dirs
 mkdir $STORAGE_DIR and print "<> creating freki directory ($STORAGE_DIR)\n" unless -d $STORAGE_DIR;
@@ -125,7 +128,6 @@ sub update_freki {
         rmdir "$HTML_DIR/articles";
     }
 
-    my %menu_links;
     for my $y (sort keys %{$S->{'pages'}}) {
         for my $m (sort keys %{$S->{'pages'}{$y}}) {
             for my $d (sort keys %{$S->{'pages'}{$y}{$m}}) {
@@ -140,28 +142,7 @@ sub update_freki {
     open my $INDEX_FD, "> $HTML_DIR/index.html";
     open my $TEMPLATE_FD, "< $TEMPLATE";
     while (my $line = <$TEMPLATE_FD>) {
-        if ($line =~ m/\[SITE_TITLE\]/gmx) {
-            $line =~ s/\[SITE_TITLE\]/$C->{'site_title'}/gmx;
-        }
-        if ($line =~ m/\[CSS_LOCATION\]/gmx) {
-            $line =~ s/\[CSS_LOCATION\]/\.\/css\/style.css/gmx;
-        }
-        if ($line =~ m/\[SITE_SUBTITLE\]/gmx) {
-            $line =~ s/\[SITE_SUBTITLE\]/$C->{'site_subtitle'}/gmx;
-        }
-        if ($line =~ m/\[FREKI_VERSION\]/gmx) {
-            $line =~ s/\[FREKI_VERSION\]/$VERSION/gmx;
-        }
-        if ($line =~ m/\[FREKI_MENU\]/gmx) {
-            $line =~ s/\[FREKI_MENU\]//gmx;
-            $line .= "<ul>\n";
-            $line .= "<li><a href='./index.html'>index</a></li>\n";
-            $line .= "<li><a href='./articles.html'>articles</a></li>\n";
-            for (sort {$menu_links{$a} cmp $menu_links{$b}} keys %menu_links) {
-                $line .= "<li><a href='./pages/$_.html'>$menu_links{$_}</a></li>\n";
-            }
-            $line .= "</ul>\n";
-        }
+        $line = &create_page_head(0, $line);
         my $MAX_ARTICLES = $C->{'max_articles'} || 3;
         my $i = 1;
         if ($line =~ m/\[FREKI_CONTENT\]/gmx) {
@@ -171,16 +152,7 @@ sub update_freki {
                     for my $m (reverse sort keys %{$S->{'articles'}{$y}}) {
                         for my $d (reverse sort keys %{$S->{'articles'}{$y}{$m}}) {
                             for my $id (sort keys %{$S->{'articles'}{$y}{$m}{$d}}) {
-                                $line .= "<div class='article'>\n";
-                                $line .= "<div class='article_topic'>\n";
-                                $line .= "<a href='./articles/$id.html'>" . $S->{'articles'}{$y}{$m}{$d}{$id}{'topic'} . "</a>";
-                                $line .= "</div>\n";
-                                $line .= "<div class='article_date'>\n";
-                                $line .= "$y-$m-$d\n";
-                                $line .= "</div>\n";
-                                $line .= "<div style='clear: both;'></div>";
-                                $line .= htmlify($S->{'articles'}{$y}{$m}{$d}{$id}{'text'});
-                                $line .= "</div>\n";
+                                $line .= &make_article('articles', $id, $y, $m, $d, 'tl');
                                 $i++;
                                 last if $i == $MAX_ARTICLES;
                             }
@@ -200,28 +172,7 @@ sub update_freki {
     open my $ARTICLE_FD, "> $HTML_DIR/articles.html";
     open $TEMPLATE_FD, "< $TEMPLATE";
     while (my $line = <$TEMPLATE_FD>) {
-        if ($line =~ m/\[SITE_TITLE\]/gmx) {
-            $line =~ s/\[SITE_TITLE\]/$C->{'site_title'}/gmx;
-        }
-        if ($line =~ m/\[CSS_LOCATION\]/gmx) {
-            $line =~ s/\[CSS_LOCATION\]/\.\/css\/style.css/gmx;
-        }
-        if ($line =~ m/\[SITE_SUBTITLE\]/gmx) {
-            $line =~ s/\[SITE_SUBTITLE\]/$C->{'site_subtitle'}/gmx;
-        }
-        if ($line =~ m/\[FREKI_VERSION\]/gmx) {
-            $line =~ s/\[FREKI_VERSION\]/$VERSION/gmx;
-        }
-        if ($line =~ m/\[FREKI_MENU\]/gmx) {
-            $line =~ s/\[FREKI_MENU\]//gmx;
-            $line .= "<ul>\n";
-            $line .= "<li><a href='./index.html'>index</a></li>\n";
-            $line .= "<li><a href='./articles.html'>articles</a></li>\n";
-            for (sort {$menu_links{$a} cmp $menu_links{$b}} keys %menu_links) {
-                $line .= "<li><a href='./pages/$_.html'>$menu_links{$_}</a></li>\n";
-            }
-            $line .= "</ul>\n";
-        }
+        $line = &create_page_head(0, $line);
         my $prev_month = sprintf("%02d", $now_m-1);
         my $next_month = sprintf("%02d", $now_m+1);
         my ($prev_year, $next_year) = ($now_y, $now_y);
@@ -239,16 +190,7 @@ sub update_freki {
                         next if $m != $now_m;
                         for my $d (reverse sort keys %{$S->{'articles'}{$y}{$m}}) {
                             for my $id (sort keys %{$S->{'articles'}{$y}{$m}{$d}}) {
-                                $line .= "<div class='article'>\n";
-                                $line .= "<div class='article_topic'>\n";
-                                $line .= "<a href='./articles/$id.html'>" . $S->{'articles'}{$y}{$m}{$d}{$id}{'topic'} . "</a>";
-                                $line .= "</div>\n";
-                                $line .= "<div class='article_date'>\n";
-                                $line .= "$y-$m-$d\n";
-                                $line .= "</div>\n";
-                                $line .= "<div style='clear: both;'></div>";
-                                $line .= htmlify($S->{'articles'}{$y}{$m}{$d}{$id}{'text'});
-                                $line .= "</div>\n";
+                                $line .= &make_article('articles', $id, $y, $m, $d, 'tl');
                             }
                         }
                     }
@@ -269,28 +211,7 @@ sub update_freki {
         open my $PAGE_FD, "> $HTML_DIR/pages/$lid.html";
         open $TEMPLATE_FD, "< $TEMPLATE";
         while (my $line = <$TEMPLATE_FD>) {
-            if ($line =~ m/\[SITE_TITLE\]/gmx) {
-                $line =~ s/\[SITE_TITLE\]/$C->{'site_title'}/gmx;
-            }
-            if ($line =~ m/\[CSS_LOCATION\]/gmx) {
-                $line =~ s/\[CSS_LOCATION\]/\.\.\/css\/style.css/gmx;
-            }   
-            if ($line =~ m/\[SITE_SUBTITLE\]/gmx) {
-                $line =~ s/\[SITE_SUBTITLE\]/$C->{'site_subtitle'}/gmx;
-            }
-            if ($line =~ m/\[FREKI_VERSION\]/gmx) {
-                $line =~ s/\[FREKI_VERSION\]/$VERSION/gmx;
-            }
-            if ($line =~ m/\[FREKI_MENU\]/gmx) {
-                $line =~ s/\[FREKI_MENU\]//gmx;
-                $line .= "<ul>\n";
-                $line .= "<li><a href='../index.html'>index</a></li>\n";
-                $line .= "<li><a href='../articles.html'>articles</a></li>\n";
-                for (sort {$menu_links{$a} cmp $menu_links{$b}} keys %menu_links) {
-                    $line .= "<li><a href='../pages/$_.html'>$menu_links{$_}</a></li>\n";
-                }
-                $line .= "</ul>\n";
-            }
+            $line = &create_page_head(1, $line);
             if ($line =~ m/\[FREKI_CONTENT\]/gmx) {
                 $line =~ s/\[FREKI_CONTENT\]//gmx;
                 for my $y (sort keys %{$S->{'pages'}}) {
@@ -298,16 +219,7 @@ sub update_freki {
                         for my $d (sort keys %{$S->{'pages'}{$y}{$m}}) {
                             for my $id (sort keys %{$S->{'pages'}{$y}{$m}{$d}}) {
                                 if ($id eq $lid) {
-                                    $line .= "<div class='article'>\n";
-                                    $line .= "<div class='article_topic'>\n";
-                                    $line .= $S->{'pages'}{$y}{$m}{$d}{$id}{'topic'};
-                                    $line .= "</div>\n";
-                                    $line .= "<div class='article_date'>\n";
-                                    $line .= "$y-$m-$d\n";
-                                    $line .= "</div>\n";
-                                    $line .= "<div style='clear: both;'></div>";
-                                    $line .= htmlify($S->{'pages'}{$y}{$m}{$d}{$id}{'text'});
-                                    $line .= "</div>\n";
+                                    $line .= &make_article('pages', $id, $y, $m, $d, 'no tl');
                                 }
                             }
                         }
@@ -343,28 +255,7 @@ sub update_freki {
         open my $ARTICLE_FD, "> $HTML_DIR/articles/$lid.html";
         open $TEMPLATE_FD, "< $TEMPLATE";
         while (my $line = <$TEMPLATE_FD>) {
-            if ($line =~ m/\[SITE_TITLE\]/gmx) {
-                $line =~ s/\[SITE_TITLE\]/$C->{'site_title'}/gmx;
-            }
-            if ($line =~ m/\[CSS_LOCATION\]/gmx) {
-                $line =~ s/\[CSS_LOCATION\]/\.\.\/css\/style.css/gmx;
-            }   
-            if ($line =~ m/\[SITE_SUBTITLE\]/gmx) {
-                $line =~ s/\[SITE_SUBTITLE\]/$C->{'site_subtitle'}/gmx;
-            }
-            if ($line =~ m/\[FREKI_VERSION\]/gmx) {
-                $line =~ s/\[FREKI_VERSION\]/$VERSION/gmx;
-            }
-            if ($line =~ m/\[FREKI_MENU\]/gmx) {
-                $line =~ s/\[FREKI_MENU\]//gmx;
-                $line .= "<ul>\n";
-                $line .= "<li><a href='../index.html'>index</a></li>\n";
-                $line .= "<li><a href='../articles.html'>articles</a></li>\n";
-                for (sort {$menu_links{$a} cmp $menu_links{$b}} keys %menu_links) {
-                    $line .= "<li><a href='../pages/$_.html'>$menu_links{$_}</a></li>\n";
-                }
-                $line .= "</ul>\n";
-            }
+            $line = &create_page_head(1, $line);
             if ($line =~ m/\[FREKI_CONTENT\]/gmx) {
                 $line =~ s/\[FREKI_CONTENT\]//gmx;
                 for my $y (reverse sort keys %{$S->{'articles'}}) {
@@ -372,16 +263,7 @@ sub update_freki {
                         for my $d (reverse sort keys %{$S->{'articles'}{$y}{$m}}) {
                             for my $id (sort keys %{$S->{'articles'}{$y}{$m}{$d}}) {
                                 if ($id eq $lid) {
-                                    $line .= "<div class='article'>\n";
-                                    $line .= "<div class='article_topic'>\n";
-                                    $line .= $S->{'articles'}{$y}{$m}{$d}{$id}{'topic'};
-                                    $line .= "</div>\n";
-                                    $line .= "<div class='article_date'>\n";
-                                    $line .= "$y-$m-$d\n";
-                                    $line .= "</div>\n";
-                                    $line .= "<div style='clear: both;'></div>";
-                                    $line .= htmlify($S->{'articles'}{$y}{$m}{$d}{$id}{'text'});
-                                    $line .= "</div>\n";
+                                    $line .= &make_article('articles', $id, $y, $m, $d, 'no tl');
                                 }
                             }
                         }
@@ -405,28 +287,7 @@ sub update_freki {
             print "\t-> articles_$y.html\n";
             open $TEMPLATE_FD, "< $TEMPLATE";
             while (my $line = <$TEMPLATE_FD>) {
-                if ($line =~ m/\[SITE_TITLE\]/gmx) {
-                    $line =~ s/\[SITE_TITLE\]/$C->{'site_title'}/gmx;
-                }
-                if ($line =~ m/\[CSS_LOCATION\]/gmx) {
-                    $line =~ s/\[CSS_LOCATION\]/\.\/css\/style.css/gmx;
-                }
-                if ($line =~ m/\[SITE_SUBTITLE\]/gmx) {
-                    $line =~ s/\[SITE_SUBTITLE\]/$C->{'site_subtitle'}/gmx;
-                }
-                if ($line =~ m/\[FREKI_VERSION\]/gmx) {
-                    $line =~ s/\[FREKI_VERSION\]/$VERSION/gmx;
-                }
-                if ($line =~ m/\[FREKI_MENU\]/gmx) {
-                    $line =~ s/\[FREKI_MENU\]//gmx;
-                    $line .= "<ul>\n";
-                    $line .= "<li><a href='./index.html'>index</a></li>\n";
-                    $line .= "<li><a href='./articles.html'>articles</a></li>\n";
-                    for (sort {$menu_links{$a} cmp $menu_links{$b}} keys %menu_links) {
-                        $line .= "<li><a href='./pages/$_.html'>$menu_links{$_}</a></li>\n";
-                    }
-                    $line .= "</ul>\n";
-                }
+                $line = &create_page_head(0, $line);
                 if ($line =~ m/\[FREKI_CONTENT\]/gmx) {
                     $line =~ s/\[FREKI_CONTENT\]//gmx;
                     my ($prev_year, $next_year) = ($y-1, $y+1);
@@ -436,16 +297,7 @@ sub update_freki {
                     for my $m (reverse sort keys %{$S->{'articles'}{$y}}) {
                         for my $d (reverse sort keys %{$S->{'articles'}{$y}{$m}}) {
                             for my $id (sort keys %{$S->{'articles'}{$y}{$m}{$d}}) {
-                                $line .= "<div class='article'>\n";
-                                $line .= "<div class='article_topic'>\n";
-                                $line .= "<a href='./articles/$id.html'>" . $S->{'articles'}{$y}{$m}{$d}{$id}{'topic'} . "</a>";
-                                $line .= "</div>\n";
-                                $line .= "<div class='article_date'>\n";
-                                $line .= "$y-$m-$d\n";
-                                $line .= "</div>\n";
-                                $line .= "<div style='clear: both;'></div>";
-                                $line .= htmlify($S->{'articles'}{$y}{$m}{$d}{$id}{'text'});
-                                $line .= "</div>\n";
+                                $line .= &make_article('articles', $id, $y, $m, $d, 'id');
                             }
                         }
                     }
@@ -467,28 +319,7 @@ sub update_freki {
                 print "\t-> articles_${y}_${m}.html\n";
                 open $TEMPLATE_FD, "< $TEMPLATE";
                 while (my $line = <$TEMPLATE_FD>) {
-                    if ($line =~ m/\[SITE_TITLE\]/gmx) {
-                        $line =~ s/\[SITE_TITLE\]/$C->{'site_title'}/gmx;
-                    }
-                    if ($line =~ m/\[CSS_LOCATION\]/gmx) {
-                        $line =~ s/\[CSS_LOCATION\]/\.\/css\/style.css/gmx;
-                    }
-                    if ($line =~ m/\[SITE_SUBTITLE\]/gmx) {
-                        $line =~ s/\[SITE_SUBTITLE\]/$C->{'site_subtitle'}/gmx;
-                    }
-                    if ($line =~ m/\[FREKI_VERSION\]/gmx) {
-                        $line =~ s/\[FREKI_VERSION\]/$VERSION/gmx;
-                    }
-                    if ($line =~ m/\[FREKI_MENU\]/gmx) {
-                        $line =~ s/\[FREKI_MENU\]//gmx;
-                        $line .= "<ul>\n";
-                        $line .= "<li><a href='./index.html'>index</a></li>\n";
-                        $line .= "<li><a href='./articles.html'>articles</a></li>\n";
-                        for (sort {$menu_links{$a} cmp $menu_links{$b}} keys %menu_links) {
-                            $line .= "<li><a href='./pages/$_.html'>$menu_links{$_}</a></li>\n";
-                        }
-                        $line .= "</ul>\n";
-                    }
+                    $line = &create_page_head(0, $line);
                     if ($line =~ m/\[FREKI_CONTENT\]/gmx) {
                         $line =~ s/\[FREKI_CONTENT\]//gmx;
 
@@ -505,16 +336,7 @@ sub update_freki {
                         $line .= " <a href='./articles_${next_year}_${next_month}.html'>next month &gt;&gt;</a>" if ($next_year <= $now_y && $next_month <= $now_m) and keys %{$S->{'articles'}{$now_y}{$now_m}};
                         for my $d (reverse sort keys %{$S->{'articles'}{$y}{$m}}) {
                             for my $id (sort keys %{$S->{'articles'}{$y}{$m}{$d}}) {
-                                $line .= "<div class='article'>\n";
-                                $line .= "<div class='article_topic'>\n";
-                                $line .= "<a href='./articles/$id.html'>" . $S->{'articles'}{$y}{$m}{$d}{$id}{'topic'} . "</a>";
-                                $line .= "</div>\n";
-                                $line .= "<div class='article_date'>\n";
-                                $line .= "$y-$m-$d\n";
-                                $line .= "</div>\n";
-                                $line .= "<div style='clear: both;'></div>";
-                                $line .= htmlify($S->{'articles'}{$y}{$m}{$d}{$id}{'text'});
-                                $line .= "</div>\n";
+                                $line .= &make_article('articles', $id, $y, $m, $d, 'tl');
                             }
                         }
                     }
@@ -526,6 +348,56 @@ sub update_freki {
         }
     }
 
+}
+
+# sub to create the site top and the menu
+sub create_page_head {
+    my ($subdir, $line) = @_;
+    if ($line =~ m/\[SITE_TITLE\]/gmx) {
+        $line =~ s/\[SITE_TITLE\]/$C->{'site_title'}/gmx;
+    }
+    if ($line =~ m/\[CSS_LOCATION\]/gmx) {
+        $line =~ s/\[CSS_LOCATION\]/\.\/css\/style.css/gmx if $subdir == 0;
+        $line =~ s/\[CSS_LOCATION\]/\.\.\/css\/style.css/gmx if $subdir == 1;
+    }
+    if ($line =~ m/\[SITE_SUBTITLE\]/gmx) {
+        $line =~ s/\[SITE_SUBTITLE\]/$C->{'site_subtitle'}/gmx;
+    }
+    if ($line =~ m/\[FREKI_VERSION\]/gmx) {
+        $line =~ s/\[FREKI_VERSION\]/$VERSION/gmx;
+    }
+    if ($line =~ m/\[FREKI_MENU\]/gmx) {
+        $line =~ s/\[FREKI_MENU\]//gmx;
+        $line .= "<ul>\n";
+        $line .= "<li><a href='./index.html'>index</a></li>\n" if $subdir == 0;
+        $line .= "<li><a href='../index.html'>index</a></li>\n" if $subdir == 1;
+        $line .= "<li><a href='./articles.html'>articles</a></li>\n" if $subdir == 0;
+        $line .= "<li><a href='../articles.html'>articles</a></li>\n" if $subdir == 1;
+        for (sort {$menu_links{$a} cmp $menu_links{$b}} keys %menu_links) {
+            $line .= "<li><a href='./pages/$_.html'>$menu_links{$_}</a></li>\n" if $subdir == 0;
+            $line .= "<li><a href='../pages/$_.html'>$menu_links{$_}</a></li>\n" if $subdir == 1;
+        }
+        $line .= "</ul>\n";
+    }
+    return $line;
+}
+
+# sub to make a div'ed article
+sub make_article {
+    my ($cat, $id, $y, $m, $d, $s) = @_;
+    my $output = "<div class='article'>\n";
+    $output .= "<div class='article_topic'>\n";
+    $output .= "<a href='./articles/$id.html'>" . $S->{'articles'}{$y}{$m}{$d}{$id}{'topic'} . "</a>" if ( $cat eq 'articles' and $s eq 'tl') ;
+    $output .= $S->{'articles'}{$y}{$m}{$d}{$id}{'topic'}  if ( $cat eq 'articles' and $s ne 'tl') ;
+    $output .= $S->{'pages'}{$y}{$m}{$d}{$id}{'topic'} if $cat eq 'pages';
+    $output .= "</div>\n";
+    $output .= "<div class='article_date'>\n";
+    $output .= "$y-$m-$d\n";
+    $output .= "</div>\n";
+    $output .= "<div style='clear: both;'></div>";
+    $output .= &htmlify($S->{$cat}{$y}{$m}{$d}{$id}{'text'});
+    $output .= "</div>\n";
+    return $output;
 }
 
 # convert text to html
