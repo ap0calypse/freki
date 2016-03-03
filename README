@@ -69,6 +69,50 @@ Simple adaptions to color/fonts/basic design can be done easily...
 ... (if you know CSS/HTML) ;)
 
 
+Usage
+------
+
+Like bazinga, freki is completely commandline driven. This was one of my
+major goals while writing it. You never have to leave your terminal. In case
+you use w3m, lynx or similar commanline browsers, you REALLY never leave it ;).
+
+In the examples/ directory, there are template files for articles and pages.
+Basically, every article consists of 2 needed tags (FREKI_CATEGORY and
+FREKI_TOPIC) and the text between START_TEXT and END_TEXT. After writing your
+article or page, you can add it like this:
+
+    $ freki add my_new_article.txt
+
+If everything is ok, you will be notified that the article was added and you
+can go on to the next step:
+    
+    $ freki update
+
+which will update the local html structure in ~/.freki/html. You can put the
+contents of this directory directly onto your webserver.
+
+If you made a mistake and want to delete an article, you can do this by
+typing:
+
+    $ freki delete ID
+
+where ID is the identifier of the article/page. To get a list of all pages and
+articles, you type:
+
+    $ freki list
+
+If you want to replace a article, because you made a mistake, you can also
+replace an article or page like this:
+
+    $ freki replace ID corrected_article.txt
+
+which will delete ID and add corrected_article.txt.
+
+In case you forget how everything works, try
+
+    $ freki help
+
+
 Backup and Restore
 -------------------
 
