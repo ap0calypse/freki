@@ -27,5 +27,7 @@ Pretty nifty huh? but wait, there is more ...
 
 ul::[first point||second point||and so on||...]
 
+ol::[first||second||third]
+
 listings are possible too :)
 END_TEXT

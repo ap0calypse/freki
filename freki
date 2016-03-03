@@ -423,7 +423,17 @@ sub htmlify {
 
         $text =~ s/ul::\[.+?\]/$final_items/g;
     }
-    $text =~ s/ul::"(.+?)"::"(.+?)"/<img src='$1' alt='$2' \/>/g;
+    if ($text =~ m/ol::\[(.+?)\]/g) {
+        my $t = $1;
+        my @items = split /\|\|/, $t;
+        my $final_items = "<ol>";
+        for (@items) {
+            $final_items .= "<li>" . $_ . "</li>";
+        }
+        $final_items .= "</ol>";
+
+        $text =~ s/ol::\[.+?\]/$final_items/g;
+    }
     $text =~ s/CODE_START(.+?)CODE_END/<pre class='code'>$1<\/pre>/gmx;
     $text =~ s/<pre class='code'><br \/>/<pre class='code'>/g;
     return $text;
