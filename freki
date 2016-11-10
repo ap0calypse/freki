@@ -156,8 +156,11 @@ sub update_freki {
                                 $i++;
                                 last if $i == $MAX_ARTICLES;
                             }
+                            last if $i == $MAX_ARTICLES;
                         }
+                        last if $i == $MAX_ARTICLES;
                     }
+                last if $i == $MAX_ARTICLES;
                 }
             }
         }
@@ -183,7 +186,6 @@ sub update_freki {
         if ($line =~ m/\[FREKI_CONTENT\]/gmx) {
             $line =~ s/\[FREKI_CONTENT\]//gmx;
             if (keys %{$S->{'articles'}}) {
-#                $line .= "<a href='./articles_${prev_year}_${prev_month}.html'>&lt;&lt; previous month</a>" if keys %{$S->{'articles'}{$prev_year}{$prev_month}};
                 my $last_month = (reverse sort keys %{$S->{'articles'}{$prev_year}})[1];
                 $line .= "<a href='./articles_${prev_year}_${last_month}.html'>&lt;&lt; previous month</a>" if keys %{$S->{'articles'}{$prev_year}{$last_month}};
                 for my $y (reverse sort keys %{$S->{'articles'}}) {
