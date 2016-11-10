@@ -144,7 +144,7 @@ sub update_freki {
     while (my $line = <$TEMPLATE_FD>) {
         $line = &create_page_head(0, $line);
         my $MAX_ARTICLES = $C->{'max_articles'} || 3;
-        my $i = 1;
+        my $i = 0;
         if ($line =~ m/\[FREKI_CONTENT\]/gmx) {
             $line =~ s/\[FREKI_CONTENT\]//gmx;
             if (keys %{$S->{'articles'}}) {
