@@ -10,7 +10,7 @@ use POSIX qw/strftime/;
 # authors:      see AUTHORS
 # license:      see LICENSE
 
-my $VERSION     = "0.6";
+my $VERSION     = "0.7";
 my $STORAGE_DIR = "$HOME/.freki";
 my $CONFIG      = "$STORAGE_DIR/freki.conf";
 my $TEMPLATE    = "$STORAGE_DIR/freki.template";
@@ -186,19 +186,22 @@ sub update_freki {
         if ($line =~ m/\[FREKI_CONTENT\]/gmx) {
             $line =~ s/\[FREKI_CONTENT\]//gmx;
             if (keys %{$S->{'articles'}}) {
-                my $last_month = (reverse sort keys %{$S->{'articles'}{$prev_year}})[1];
-                $line .= "<a href='./articles_${prev_year}_${last_month}.html'>&lt;&lt; previous month</a>" if keys %{$S->{'articles'}{$prev_year}{$last_month}};
+                $line .= "<div class='article'>\n";
                 for my $y (reverse sort keys %{$S->{'articles'}}) {
-                    next if $y != $now_y;
+                    $line .= "<div class='year'>$y</div><div style='clear: both;'></div><br />";
                     for my $m (reverse sort keys %{$S->{'articles'}{$y}}) {
-                        next if $m != $now_m;
+                        $line .= "<div class='art_month'>$m</div>";
                         for my $d (reverse sort keys %{$S->{'articles'}{$y}{$m}}) {
+                            $line .= "<div class='art_topics'>$d<br />";
                             for my $id (sort keys %{$S->{'articles'}{$y}{$m}{$d}}) {
-                                $line .= &make_article('articles', $id, $y, $m, $d, 'tl');
+                                $line .= "<a href='./articles/$id.html'>$S->{'articles'}{$y}{$m}{$d}{$id}{'topic'}</a><br />";
                             }
+                            $line .= "</div>";
                         }
+                        $line .= "<div style='clear: both;'></div>";
                     }
                 }
+                $line .= "</div>";
             }
         }
         print $ARTICLE_FD $line;
@@ -281,77 +284,6 @@ sub update_freki {
         close $TEMPLATE_FD;
         close $ARTICLE_FD;
     }
-
-
-    ########################################################### ARTICLES.YEARLY #################################
-    print ">> Generating yearly article pages\n";
-    if (keys %{$S->{'articles'}}) {
-        for my $y (sort keys %{$S->{'articles'}}) { # articles_2015.html for example
-            open my $ARTFD, "> $HTML_DIR/articles_$y.html";
-            print "\t-> articles_$y.html\n";
-            open $TEMPLATE_FD, "< $TEMPLATE";
-            while (my $line = <$TEMPLATE_FD>) {
-                $line = &create_page_head(0, $line);
-                if ($line =~ m/\[FREKI_CONTENT\]/gmx) {
-                    $line =~ s/\[FREKI_CONTENT\]//gmx;
-                    my ($prev_year, $next_year) = ($y-1, $y+1);
-                    $line .= "<a href='./articles_$prev_year.html'>&lt;&lt; previous year</a> " if keys %{$S->{'articles'}{$prev_year}};
-                    $line .= "| <a href='./articles_$next_year.html'>next year &gt;&gt;</a>" if keys  %{$S->{'articles'}{$next_year}};
-
-                    for my $m (reverse sort keys %{$S->{'articles'}{$y}}) {
-                        for my $d (reverse sort keys %{$S->{'articles'}{$y}{$m}}) {
-                            for my $id (sort keys %{$S->{'articles'}{$y}{$m}{$d}}) {
-                                $line .= &make_article('articles', $id, $y, $m, $d, 'tl');
-                            }
-                        }
-                    }
-                }
-                print $ARTFD $line;
-            }
-            close $TEMPLATE_FD;
-            close $ARTFD;
-        }
-    }
-    
-    ########################################################### ARTICLES.MONTHLY #################################
-    print ">> Generating monthly article pages\n";
-    if (keys %{$S->{'articles'}}) {
-        for my $y (sort keys %{$S->{'articles'}}) { 
-            for my $m (sort keys %{$S->{'articles'}{$y}}) {
-                next unless keys %{$S->{'articles'}{$y}{$m}};
-                open my $ARTFD, "> $HTML_DIR/articles_${y}_${m}.html";
-                print "\t-> articles_${y}_${m}.html\n";
-                open $TEMPLATE_FD, "< $TEMPLATE";
-                while (my $line = <$TEMPLATE_FD>) {
-                    $line = &create_page_head(0, $line);
-                    if ($line =~ m/\[FREKI_CONTENT\]/gmx) {
-                        $line =~ s/\[FREKI_CONTENT\]//gmx;
-
-                        # calculate prev/next months
-                        my $prev_month = sprintf("%02d", $m-1);
-                        my $next_month = sprintf("%02d", $m+1);
-                        my ($prev_year, $next_year) = ($y, $y);
-
-                        # sanity check
-                        if ($prev_month == 0) { $prev_month = 12; $prev_year--; }
-                        if ($next_month == 13) { $next_month = "01"; $next_year++; }
-
-                        $line .= "<a href='./articles_${prev_year}_${prev_month}.html'>&lt;&lt; previous month</a> " if keys %{$S->{'articles'}{$prev_year}{$prev_month}};
-                        $line .= " <a href='./articles_${next_year}_${next_month}.html'>next month &gt;&gt;</a>" if keys %{$S->{'articles'}{$next_year}{$next_month}};
-                        for my $d (reverse sort keys %{$S->{'articles'}{$y}{$m}}) {
-                            for my $id (sort keys %{$S->{'articles'}{$y}{$m}{$d}}) {
-                                $line .= &make_article('articles', $id, $y, $m, $d, 'tl');
-                            }
-                        }
-                    }
-                    print $ARTFD $line;
-                }
-                close $TEMPLATE_FD;
-                close $ARTFD;
-            }
-        }
-    }
-
 }
 
 # sub to create the site top and the menu
