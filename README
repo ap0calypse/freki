@@ -121,7 +121,7 @@ git history. I opted this feature out because I don't see the need
 for it. A simple freki backup which could be one daily/weekly/whatever
 cronjob, could look like this:
 
-    cp ~/.freki/freki.dat /path/to/your/safe_place/freki.dat.$(date -I'date')
+    cp ~/.freki/freki.dat /path/to/your/safe_place/freki.dat.$(date -I)
 
 which would save your dat-file appended with a timestamp to your 
 backup directory.
