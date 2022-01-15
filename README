@@ -74,7 +74,7 @@ Usage
 
 Like bazinga, freki is completely commandline driven. This was one of my
 major goals while writing it. You never have to leave your terminal. In case
-you use w3m, lynx or similar commanline browsers, you REALLY never leave it ;).
+you use w3m, lynx or similar commandline browsers, you REALLY never leave it ;).
 
 In the examples/ directory, there are template files for articles and pages.
 Basically, every article consists of 2 needed tags (FREKI_CATEGORY and
